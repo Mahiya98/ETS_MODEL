@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETS Models — Complete Reference</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f8f8f6; color: #1a1a18; }
+  h1 { text-align: center; padding: 2rem 1rem 0.5rem; font-size: 1.6rem; font-weight: 600; }
+  .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 0 1rem 1.5rem; }
+  .filter-btn { padding: 6px 14px; border: 1px solid #ccc; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.82rem; transition: all 0.15s; }
+  .filter-btn.active, .filter-btn:hover { background: #2a78d6; color: #fff; border-color: #2a78d6; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; padding: 0 1rem 2rem; max-width: 1400px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e2; padding: 1rem; }
+  .card-header { margin-bottom: 10px; }
+  .card-code { font-size: 1rem; font-weight: 700; color: #2a78d6; font-family: monospace; }
+  .card-name { font-size: 0.78rem; color: #666; margin-top: 2px; }
+  .card-formula { font-size: 0.72rem; color: #888; margin-top: 4px; font-family: monospace; background: #f5f5f3; border-radius: 4px; padding: 4px 6px; }
+  .chart-wrap { position: relative; height: 140px; margin-top: 8px; }
+
+  .badge { display: inline-block; font-size: 0.68rem; padding: 2px 7px; border-radius: 10px; margin-right: 4px; margin-top: 6px; }
+  .badge-error-A { background: #e8f0fc; color: #1a4fa0; }
+  .badge-error-M { background: #fde8e8; color: #a01a1a; }
+  .badge-trend-N { background: #f0f0ee; color: #555; }
+  .badge-trend-A { background: #e8f7ee; color: #1a6b3a; }
+  .badge-trend-Ad { background: #e8f5f7; color: #1a5a6b; }
+  .badge-trend-M { background: #fdf0e8; color: #8a3a0a; }
+  .badge-trend-Md { background: #f7ebe8; color: #6b2a1a; }
+  .badge-season-N { background: #f0f0ee; color: #555; }
+  .badge-season-A { background: #ede8f7; color: #4a1a8a; }
+  .badge-season-M { background: #f7e8f0; color: #8a1a5a; }
+
+  .legend { display: flex; gap: 12px; margin-top: 6px; font-size: 0.7rem; color: #888; align-items: center; }
+  .legend-dot { width: 16px; height: 3px; display: inline-block; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
+
+  @media (prefers-color-scheme: dark) {
+    body { background: #141413; color: #f0efec; }
+    .card { background: #1e1e1c; border-color: #333; }
+    .card-formula { background: #2a2a28; color: #aaa; }
+    .filter-btn { background: #222; border-color: #444; color: #ccc; }
+    .badge-error-A { background: #1a2a4a; color: #7aaaf0; }
+    .badge-error-M { background: #4a1a1a; color: #f07a7a; }
+    .badge-trend-N { background: #2a2a28; color: #aaa; }
+    .badge-trend-A { background: #1a3a28; color: #7ad0a0; }
+    .badge-trend-Ad { background: #1a2a3a; color: #7ab0c0; }
+    .badge-trend-M { background: #3a2a1a; color: #c09060; }
+    .badge-trend-Md { background: #3a1a1a; color: #c08070; }
+    .badge-season-N { background: #2a2a28; color: #aaa; }
+    .badge-season-A { background: #2a1a3a; color: #b080f0; }
+    .badge-season-M { background: #3a1a2a; color: #d080b0; }
+  }
+</style>
+</head>
+<body>
+
+<h1>ETS Models — Complete Reference</h1>
+<p class="subtitle">All 30 possible ETS(Error, Trend, Seasonality) model combinations</p>
+
+<div class="filters">
+  <button class="filter-btn active" onclick="filter('all')">All 30 models</button>
+  <button class="filter-btn" onclick="filter('error-A')">Additive Error</button>
+  <button class="filter-btn" onclick="filter('error-M')">Multiplicative Error</button>
+  <button class="filter-btn" onclick="filter('trend-N')">No Trend</button>
+  <button class="filter-btn" onclick="filter('trend-A')">Additive Trend</button>
+  <button class="filter-btn" onclick="filter('trend-Ad')">Damped Trend</button>
+  <button class="filter-btn" onclick="filter('trend-M')">Multiplicative Trend</button>
+  <button class="filter-btn" onclick="filter('trend-Md')">Mult. Damped</button>
+  <button class="filter-btn" onclick="filter('season-N')">No Seasonality</button>
+  <button class="filter-btn" onclick="filter('season-A')">Additive Season</button>
+  <button class="filter-btn" onclick="filter('season-M')">Mult. Season</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const T = 24;
+function linspace(a,b,n){return Array.from({length:n},(_,i)=>a+(b-a)*i/(n-1));}
+function addNoise(arr, sigma){return arr.map(v=>v+sigma*(Math.random()-0.5)*2);}
+function clamp(arr){return arr.map(v=>Math.max(0.1,v));}
+
+function genData(error, trend, season) {
+  const t = linspace(0,1,T);
+  let base, trendArr, seasonArr;
+
+  if (trend==='N') trendArr = t.map(()=>0);
+  else if (trend==='A') trendArr = t.map(x=>30*x);
+  else if (trend==='Ad') trendArr = t.map(x=>30*(1-Math.exp(-3*x)));
+  else if (trend==='M') trendArr = t.map(x=>Math.exp(2.5*x)-1);
+  else if (trend==='Md') trendArr = t.map(x=>40*(1-Math.exp(-2*x)));
+
+  if (season==='N') seasonArr = t.map(()=>0);
+  else if (season==='A') seasonArr = t.map((_,i)=>15*Math.sin(2*Math.PI*i/6));
+  else if (season==='M') seasonArr = t.map((_,i)=>1+0.35*Math.sin(2*Math.PI*i/6));
+
+  if (season==='M') {
+    base = trendArr.map((tr,i)=>(80+tr)*seasonArr[i]);
+  } else {
+    base = trendArr.map((tr,i)=>80+tr+seasonArr[i]);
+  }
+
+  let noisy;
+  if (error==='A') noisy = addNoise(base, 5);
+  else noisy = base.map(v=>v*(1+(Math.random()-0.5)*0.12));
+
+  return { actual: clamp(noisy), fitted: base };
+}
+
+const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+const tickColor = isDark ? '#888' : '#aaa';
+const actColor = '#2a78d6';
+const fitColor = '#eb6834';
+
+const models = [
+  // Additive Error
+  {code:'ETS(A,N,N)', error:'A', trend:'N', season:'N', formula:'ℓₜ = αyₜ + (1-α)ℓₜ₋₁', desc:'Simple exponential smoothing'},
+  {code:'ETS(A,A,N)', error:'A', trend:'A', season:'N', formula:'ℓₜ = αyₜ + (1-α)(ℓₜ₋₁+bₜ₋₁)', desc:"Holt's linear trend"},
+  {code:'ETS(A,Ad,N)', error:'A', trend:'Ad', season:'N', formula:'ℓₜ = αyₜ + (1-α)(ℓₜ₋₁+φbₜ₋₁)', desc:'Additive damped trend'},
+  {code:'ETS(A,M,N)', error:'A', trend:'M', season:'N', formula:'ℓₜ = αyₜ + (1-α)ℓₜ₋₁bₜ₋₁', desc:'Multiplicative trend'},
+  {code:'ETS(A,Md,N)', error:'A', trend:'Md', season:'N', formula:'ℓₜ = αyₜ + (1-α)ℓₜ₋₁bₜ₋₁^φ', desc:'Multiplicative damped trend'},
+  {code:'ETS(A,N,A)', error:'A', trend:'N', season:'A', formula:'ŷₜ = ℓₜ₋₁ + sₜ₋ₘ', desc:'SES with additive seasonality'},
+  {code:'ETS(A,A,A)', error:'A', trend:'A', season:'A', formula:'ŷₜ = ℓₜ₋₁ + bₜ₋₁ + sₜ₋ₘ', desc:"Holt-Winters additive"},
+  {code:'ETS(A,Ad,A)', error:'A', trend:'Ad', season:'A', formula:'ŷₜ = ℓₜ₋₁ + φbₜ₋₁ + sₜ₋ₘ', desc:'Damped Holt-Winters additive'},
+  {code:'ETS(A,M,A)', error:'A', trend:'M', season:'A', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁ + sₜ₋ₘ', desc:'Mult. trend + additive season'},
+  {code:'ETS(A,Md,A)', error:'A', trend:'Md', season:'A', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁^φ + sₜ₋ₘ', desc:'Mult. damped + additive season'},
+  {code:'ETS(A,N,M)', error:'A', trend:'N', season:'M', formula:'ŷₜ = ℓₜ₋₁ · sₜ₋ₘ', desc:'SES with multiplicative seasonality'},
+  {code:'ETS(A,A,M)', error:'A', trend:'A', season:'M', formula:'ŷₜ = (ℓₜ₋₁ + bₜ₋₁) · sₜ₋ₘ', desc:"Holt-Winters multiplicative"},
+  {code:'ETS(A,Ad,M)', error:'A', trend:'Ad', season:'M', formula:'ŷₜ = (ℓₜ₋₁ + φbₜ₋₁) · sₜ₋ₘ', desc:'Damped Holt-Winters mult.'},
+  {code:'ETS(A,M,M)', error:'A', trend:'M', season:'M', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁ · sₜ₋ₘ', desc:'Mult. trend + mult. season'},
+  {code:'ETS(A,Md,M)', error:'A', trend:'Md', season:'M', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁^φ · sₜ₋ₘ', desc:'Mult. damped + mult. season'},
+  // Multiplicative Error
+  {code:'ETS(M,N,N)', error:'M', trend:'N', season:'N', formula:'ℓₜ = αyₜ + (1-α)ℓₜ₋₁', desc:'Mult. error, no trend, no season'},
+  {code:'ETS(M,A,N)', error:'M', trend:'A', season:'N', formula:'ℓₜ = αyₜ + (1-α)(ℓₜ₋₁+bₜ₋₁)', desc:'Mult. error, additive trend'},
+  {code:'ETS(M,Ad,N)', error:'M', trend:'Ad', season:'N', formula:'ℓₜ = αyₜ + (1-α)(ℓₜ₋₁+φbₜ₋₁)', desc:'Mult. error, additive damped'},
+  {code:'ETS(M,M,N)', error:'M', trend:'M', season:'N', formula:'ℓₜ = αyₜ + (1-α)ℓₜ₋₁bₜ₋₁', desc:'Mult. error + mult. trend'},
+  {code:'ETS(M,Md,N)', error:'M', trend:'Md', season:'N', formula:'ℓₜ = αyₜ + (1-α)ℓₜ₋₁bₜ₋₁^φ', desc:'Mult. error + mult. damped'},
+  {code:'ETS(M,N,A)', error:'M', trend:'N', season:'A', formula:'ŷₜ = ℓₜ₋₁ + sₜ₋ₘ', desc:'Mult. error + additive season'},
+  {code:'ETS(M,A,A)', error:'M', trend:'A', season:'A', formula:'ŷₜ = ℓₜ₋₁ + bₜ₋₁ + sₜ₋ₘ', desc:'Mult. error + full additive'},
+  {code:'ETS(M,Ad,A)', error:'M', trend:'Ad', season:'A', formula:'ŷₜ = ℓₜ₋₁ + φbₜ₋₁ + sₜ₋ₘ', desc:'Mult. error + damped + add. season'},
+  {code:'ETS(M,M,A)', error:'M', trend:'M', season:'A', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁ + sₜ₋ₘ', desc:'Mult. error + mult. trend + add. season'},
+  {code:'ETS(M,Md,A)', error:'M', trend:'Md', season:'A', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁^φ + sₜ₋ₘ', desc:'Mult. error + mult. damped + add. season'},
+  {code:'ETS(M,N,M)', error:'M', trend:'N', season:'M', formula:'ŷₜ = ℓₜ₋₁ · sₜ₋ₘ', desc:'Mult. error + mult. season'},
+  {code:'ETS(M,A,M)', error:'M', trend:'A', season:'M', formula:'ŷₜ = (ℓₜ₋₁ + bₜ₋₁) · sₜ₋ₘ', desc:'Mult. error + add. trend + mult. season'},
+  {code:'ETS(M,Ad,M)', error:'M', trend:'Ad', season:'M', formula:'ŷₜ = (ℓₜ₋₁ + φbₜ₋₁) · sₜ₋ₘ', desc:'Mult. error + damped + mult. season'},
+  {code:'ETS(M,M,M)', error:'M', trend:'M', season:'M', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁ · sₜ₋ₘ', desc:'Fully multiplicative (all three)'},
+  {code:'ETS(M,Md,M)', error:'M', trend:'Md', season:'M', formula:'ŷₜ = ℓₜ₋₁bₜ₋₁^φ · sₜ₋ₘ', desc:'Mult. error + mult. damped + mult. season'},
+];
+
+const labels = Array.from({length:T},(_,i)=>`t${i+1}`);
+const charts = [];
+
+function buildCards(list) {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  charts.forEach(c=>c.destroy());
+  charts.length = 0;
+
+  list.forEach((m, idx) => {
+    const {actual, fitted} = genData(m.error, m.trend, m.season);
+    const id = `c${idx}`;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.error = 'error-'+m.error;
+    card.dataset.trend = 'trend-'+m.trend;
+    card.dataset.season = 'season-'+m.season;
+
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-code">${m.code}</div>
+        <div class="card-name">${m.desc}</div>
+        <div class="card-formula">${m.formula}</div>
+        <div style="margin-top:6px">
+          <span class="badge badge-error-${m.error}">Error: ${m.error==='A'?'Additive':'Multiplicative'}</span>
+          <span class="badge badge-trend-${m.trend}">Trend: ${{N:'None',A:'Additive',Ad:'Add. Damped',M:'Mult.',Md:'Mult. Damped'}[m.trend]}</span>
+          <span class="badge badge-season-${m.season}">Season: ${m.season==='N'?'None':m.season==='A'?'Additive':'Multiplicative'}</span>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="${id}" role="img" aria-label="Chart for ${m.code}"></canvas></div>
+      <div class="legend">
+        <span><span class="legend-dot" style="background:${actColor}; display:inline-block;"></span>Actual</span>
+        <span><span class="legend-dot" style="background:${fitColor}; border-top:2px dashed ${fitColor}; display:inline-block;"></span>Fitted</span>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    const ch = new Chart(document.getElementById(id), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label:'Actual', data:actual, borderColor:actColor, borderWidth:1.5, pointRadius:0, tension:0.3, fill:false },
+          { label:'Fitted', data:fitted, borderColor:fitColor, borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[4,3] }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:false,
+        plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+        scales:{
+          x:{ display:false },
+          y:{ display:true, grid:{color:gridColor}, ticks:{color:tickColor, font:{size:9}, maxTicksLimit:4}, border:{display:false} }
+        }
+      }
+    });
+    charts.push(ch);
+  });
+}
+
+function filter(type) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  let filtered;
+  if (type==='all') filtered = models;
+  else {
+    const [cat, val] = type.split('-');
+    filtered = models.filter(m=>m[cat]===val || (cat==='trend' && val==='Ad' && m.trend==='Ad') || (cat==='trend' && val==='Md' && m.trend==='Md'));
+    // simpler:
+    filtered = models.filter(m=>{
+      if(type==='error-A') return m.error==='A';
+      if(type==='error-M') return m.error==='M';
+      if(type==='trend-N') return m.trend==='N';
+      if(type==='trend-A') return m.trend==='A';
+      if(type==='trend-Ad') return m.trend==='Ad';
+      if(type==='trend-M') return m.trend==='M';
+      if(type==='trend-Md') return m.trend==='Md';
+      if(type==='season-N') return m.season==='N';
+      if(type==='season-A') return m.season==='A';
+      if(type==='season-M') return m.season==='M';
+      return true;
+    });
+  }
+  buildCards(filtered);
+}
+
+buildCards(models);
+</script>
+</body>
+</html>
